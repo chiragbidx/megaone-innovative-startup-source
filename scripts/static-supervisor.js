@@ -5,18 +5,35 @@ import { startGitPoll } from "./git-poll.js";
 
 const BRANCH = process.env.PREVIEW_BRANCH || "main";
 const REPO_URL = process.env.REPO_URL;
+const CWD = "/app";
 
-process.chdir("/app"); // 🔑 FORCE cwd
+if (!REPO_URL) {
+  console.error("[supervisor] REPO_URL is required");
+  process.exit(1);
+}
+
+process.chdir(CWD); // 🔑 FORCE cwd
+
+const run = (cmd) => execSync(cmd, { stdio: "inherit", cwd: CWD });
 
 console.log("[supervisor] ensuring git repo");
 
 if (!fs.existsSync(".git")) {
-  execSync("git init", { stdio: "inherit", cwd: "/app" });
-  execSync(`git remote add origin ${REPO_URL}`, { stdio: "inherit", cwd: "/app" });
-  execSync("git fetch origin --depth=1", { stdio: "inherit", cwd: "/app" });
-  execSync(`git reset --hard origin/${BRANCH}`, { stdio: "inherit", cwd: "/app" });
-  execSync("git clean -fd", { stdio: "inherit", cwd: "/app" });
+  run("git init");
 }
+
+try {
+  const current = execSync("git remote get-url origin", { cwd: CWD }).toString().trim();
+  if (current !== REPO_URL) {
+    run(`git remote set-url origin ${REPO_URL}`);
+  }
+} catch {
+  run(`git remote add origin ${REPO_URL}`);
+}
+
+run(`git fetch origin ${BRANCH} --depth=1 --prune`);
+run(`git reset --hard origin/${BRANCH}`);
+run("git clean -fd");
 
 console.log("[supervisor] static preview running");
 

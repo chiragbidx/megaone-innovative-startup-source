@@ -1,11 +1,13 @@
-FROM node:20
+FROM node:20-alpine
+
+RUN apk add --no-cache git
 
 WORKDIR /app
+ENV NODE_ENV=production
 
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
-
-COPY . .
+COPY --chown=node:node . .
 
 EXPOSE 8080
+USER node
 
 CMD ["node", "scripts/static-supervisor.js"]
